@@ -6,12 +6,18 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
 import org.apache.http.NameValuePair;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.DefaultProxyRoutePlanner;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
@@ -22,16 +28,30 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by honey on 2017/7/19.
  */
 public class RequestMbike {
+
     public static void main(String[] args) {
-        for (int i=0;i<2;i++){
-            httpPost((float)i);
-        }
-        System.out.println("cf:"+cf);
+//        for (int i=0;i<25;i++){
+//            final int index = i;
+//            ThreadWork.fixedThreadPool.execute(new Runnable() {
+//                public void run() {
+//                    httpPost((float)index,HttpClients.createDefault());
+//                }
+//            });
+//        }
+
+        HttpHost proxy = new HttpHost("117.143.109.35", 8080, "http");
+
+        DefaultProxyRoutePlanner routePlanner = new DefaultProxyRoutePlanner(proxy);
+        CloseableHttpClient httpclient1 = HttpClients.custom()
+                .setRoutePlanner(routePlanner)
+                .build();
+        httpPost((float)1f,HttpClients.createDefault());
     }
 
     public static float disInterval = 0.0003f;
@@ -45,14 +65,14 @@ public class RequestMbike {
     public static float right = 109.0599f;
 
 
-    public static void httpPost(float index){
+    public static void httpPost(float index,CloseableHttpClient httpclient){
 //        34.1
 //        34.3533569871,108.8460159302
 //        34.1873818600,108.8504791260
 //        34.1896538139,109.0599060059
 //        34.3570416008,109.0454864502
         float lat = initLat - disInterval*index;
-        CloseableHttpClient httpclient = HttpClients.createDefault();
+
         HttpPost httppost = new HttpPost("https://api.mobike.com/mobike-api/rent/v2/nearbyBikesInfo.do");
         List<NameValuePair> params = new ArrayList<NameValuePair>();
         params.add(new BasicNameValuePair("cityCode","029"));
@@ -78,27 +98,34 @@ public class RequestMbike {
         UrlEncodedFormEntity uefEntity;
         try{
             uefEntity = new UrlEncodedFormEntity(params,"UTF-8");
+
             httppost.setHeaders((Header[]) headers.toArray(new Header[0]));
             httppost.setEntity(uefEntity);
-            System.out.println("executing request " + httppost.getURI());
+
             CloseableHttpResponse response = httpclient.execute(httppost);
             try{
                 HttpEntity entity = response.getEntity();
                 String resJson = EntityUtils.toString(entity);
+                System.out.println(resJson);
                 JSONObject jsonObject = JSON.parseObject(resJson);
                 JSONArray bikes = jsonObject.getJSONArray("bike");
-                System.out.println(bikes.size());
+//                System.out.println(bikes.size());
                 for (Object object:bikes){
 //                    insert((JSONObject) object);
                     JSONObject object1 = (JSONObject) object;
-                    if(ids.contains(object1.getString("distId"))){
-                        cf++;
-                    }else {
-                        ids.add(object1.getString("distId"));
-                    }
+                    ids.add(object1.getString("distId"));
+//                    if(ids.contains(object1.getString("distId"))){
+//                        cf++;
+//                    }else {
+//                        ids.add(object1.getString("distId"));
+//                    }
                 }
+            }catch (Exception e){
+                System.out.println("index:"+index);
+
             }finally{
                 response.close();
+                System.out.println("index1:"+index);
             }
         }catch(Exception e){
             e.printStackTrace();
